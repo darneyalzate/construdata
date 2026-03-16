@@ -1,6 +1,6 @@
 import mysql.connector
 
-def conectar():
+try:
 
     conexion = mysql.connector.connect(
         host="localhost",
@@ -9,4 +9,8 @@ def conectar():
         database="construdata"
     )
 
-    return conexion
+    print("Conexion exitosa")
+
+except Exception as e:
+
+    print("Error:",e)
