@@ -1,1070 +1,829 @@
-"""
-Sistema ConstruData — Versión Completa
-========================================
-Dependencias:
-    pip install openpyxl reportlab fpdf2 tkcalendar Pillow mysql-connector-python
-
-Estructura de módulos:
-    - Proyectos   (con imagen de portada)
-    - Empleados   (con foto de perfil)
-    - Materiales
-    - Proveedores
-    - Exportación (Excel + PDF con filtros)
-"""
-
-import re
-import os
-import shutil
 import mysql.connector
-from datetime import datetime
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
+import re
+import os
 
-# ── Librerías opcionales con mensajes claros si faltan ──────────────────────
+# Pillow para imágenes (opcional)
 try:
-    from tkcalendar import DateEntry
-    TKCALENDAR_OK = True
-except ImportError:
-    TKCALENDAR_OK = False
-    print("⚠ tkcalendar no instalado. Ejecuta: pip install tkcalendar")
-
-try:
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    OPENPYXL_OK = True
-except ImportError:
-    OPENPYXL_OK = False
-    print("⚠ openpyxl no instalado. Ejecuta: pip install openpyxl")
-
-try:
-    from fpdf import FPDF
-    FPDF_OK = True
-except ImportError:
-    FPDF_OK = False
-    print("⚠ fpdf2 no instalado. Ejecuta: pip install fpdf2")
-
-try:
-    from PIL import Image, ImageTk, ImageFilter
+    from PIL import Image, ImageTk
     PIL_OK = True
 except ImportError:
     PIL_OK = False
-    print("⚠ Pillow no instalado. Ejecuta: pip install Pillow")
 
-# ── Carpeta para imágenes del sistema ───────────────────────────────────────
-IMG_DIR = os.path.join(os.path.dirname(__file__), "construdata_imagenes")
-os.makedirs(IMG_DIR, exist_ok=True)
-
-# ════════════════════════════════════════════════════════════════════════════
-#  CONEXIÓN
-# ════════════════════════════════════════════════════════════════════════════
-
-def conectar():
-    return mysql.connector.connect(
-        host="localhost", user="root", password="", database="construdata"
-    )
-
-# ════════════════════════════════════════════════════════════════════════════
-#  VALIDACIONES
-# ════════════════════════════════════════════════════════════════════════════
-
-def validar_numero(valor, campo="Campo", entero=False):
-    """Devuelve (True, valor_convertido) o (False, mensaje_error)."""
-    v = valor.strip()
-    if not v:
-        return False, f"{campo} es obligatorio."
-    try:
-        return (True, int(v)) if entero else (True, float(v))
-    except ValueError:
-        tipo = "entero" if entero else "numérico"
-        return False, f"{campo} debe ser un valor {tipo}. Recibido: '{v}'"
+# Carpeta donde se guardan las imágenes del sistema
+CARPETA_IMG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes_construdata")
+os.makedirs(CARPETA_IMG, exist_ok=True)
 
 
-def validar_texto(valor, campo="Campo", min_len=2, max_len=100):
-    v = valor.strip()
-    if len(v) < min_len:
-        return False, f"{campo} debe tener al menos {min_len} caracteres."
-    if len(v) > max_len:
-        return False, f"{campo} no puede superar {max_len} caracteres."
-    if re.search(r'[<>"\';]', v):
-        return False, f"{campo} contiene caracteres no permitidos (< > \" ' ;)."
-    return True, v
+# ============================================================
+# FUNCIONES DE IMAGEN
+# ============================================================
 
+FORMATOS_OK = (".jpg", ".jpeg", ".png", ".gif")
 
-def validar_email(valor):
-    patron = r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$'
-    if not re.match(patron, valor.strip()):
-        return False, f"Email inválido: '{valor}'. Formato esperado: usuario@dominio.com"
-    return True, valor.strip()
-
-
-def validar_fecha(valor, campo="Fecha"):
-    """Acepta YYYY-MM-DD o DD/MM/YYYY."""
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
-        try:
-            return True, datetime.strptime(valor.strip(), fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    return False, f"{campo} inválida. Use YYYY-MM-DD o DD/MM/YYYY."
-
-
-def mostrar_error(msg):
-    messagebox.showerror("Error de validación", msg)
-
-
-def confirmar(pregunta):
-    return messagebox.askyesno("Confirmar operación", pregunta)
-
-# ════════════════════════════════════════════════════════════════════════════
-#  MANEJO DE IMÁGENES (Pillow)
-# ════════════════════════════════════════════════════════════════════════════
-
-FORMATOS_PERMITIDOS = {".jpg", ".jpeg", ".png", ".gif"}
-TAMANO_MAX_MB = 5
-THUMB_SIZE = (120, 120)
-
-
-def validar_imagen(ruta):
-    """Verifica formato y tamaño. Devuelve (True, ruta) o (False, mensaje)."""
+def seleccionar_imagen(lbl_preview, var_ruta):
+    """Abre el explorador, valida la imagen y muestra un preview."""
     if not PIL_OK:
-        return False, "Pillow no está instalado."
-    ext = os.path.splitext(ruta)[1].lower()
-    if ext not in FORMATOS_PERMITIDOS:
-        return False, f"Formato no permitido: '{ext}'. Use JPG, PNG o GIF."
-    tam_mb = os.path.getsize(ruta) / (1024 * 1024)
-    if tam_mb > TAMANO_MAX_MB:
-        return False, f"La imagen pesa {tam_mb:.1f} MB. Máximo permitido: {TAMANO_MAX_MB} MB."
-    return True, ruta
-
-
-def guardar_imagen(ruta_origen, nombre_destino):
-    """
-    Copia la imagen al directorio de imágenes del sistema,
-    la redimensiona a 800x600 máximo y devuelve la ruta destino.
-    """
-    ext = os.path.splitext(ruta_origen)[1].lower()
-    nombre_archivo = f"{nombre_destino}{ext}"
-    ruta_destino = os.path.join(IMG_DIR, nombre_archivo)
-
-    img = Image.open(ruta_origen)
-    # Convertir GIF animado a PNG estático
-    if img.format == "GIF":
-        img = img.convert("RGBA")
-        nombre_archivo = f"{nombre_destino}.png"
-        ruta_destino = os.path.join(IMG_DIR, nombre_archivo)
-    # Redimensionar manteniendo proporción
-    img.thumbnail((800, 600), Image.LANCZOS)
-    img.save(ruta_destino)
-    return ruta_destino
-
-
-def crear_thumbnail(ruta, size=THUMB_SIZE):
-    """Devuelve un PhotoImage para mostrar en la UI."""
-    if not PIL_OK:
-        return None
-    try:
-        img = Image.open(ruta)
-        if img.format == "GIF":
-            img = img.convert("RGBA")
-        img.thumbnail(size, Image.LANCZOS)
-        return ImageTk.PhotoImage(img)
-    except Exception:
-        return None
-
-
-def selector_imagen(label_preview, var_ruta):
-    """Abre diálogo, valida y muestra preview de imagen."""
+        messagebox.showerror("Error", "Instala Pillow para usar imágenes:\npip install Pillow")
+        return
     ruta = filedialog.askopenfilename(
         title="Seleccionar imagen",
-        filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif"), ("Todos", "*.*")]
+        filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif")]
     )
     if not ruta:
         return
-    ok, msg = validar_imagen(ruta)
-    if not ok:
-        mostrar_error(msg)
+    # Validar formato
+    ext = os.path.splitext(ruta)[1].lower()
+    if ext not in FORMATOS_OK:
+        messagebox.showerror("Formato inválido", f"No se permite '{ext}'.\nUsa JPG, PNG o GIF.")
         return
+    # Validar tamaño (máx 5 MB)
+    tam_mb = os.path.getsize(ruta) / (1024 * 1024)
+    if tam_mb > 5:
+        messagebox.showerror("Imagen muy grande", f"Pesa {tam_mb:.1f} MB. El máximo es 5 MB.")
+        return
+    # Guardar ruta y mostrar preview
     var_ruta.set(ruta)
-    thumb = crear_thumbnail(ruta)
-    if thumb:
-        label_preview.config(image=thumb, text="")
-        label_preview.image = thumb   # evitar garbage collection
-
-# ════════════════════════════════════════════════════════════════════════════
-#  WIDGETS REUTILIZABLES
-# ════════════════════════════════════════════════════════════════════════════
-
-def campo_texto(parent, etiqueta, fila, col=0, ancho=22, min_len=2, max_len=100):
-    Label(parent, text=etiqueta).grid(row=fila, column=col, sticky="w", padx=8, pady=3)
-    e = Entry(parent, width=ancho)
-    e.grid(row=fila, column=col + 1, padx=4, pady=3, sticky="w")
-    return e
+    try:
+        img = Image.open(ruta)
+        img.thumbnail((120, 100))
+        foto = ImageTk.PhotoImage(img)
+        lbl_preview.config(image=foto, text="")
+        lbl_preview.image = foto  # evitar que el garbage collector la elimine
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo cargar la imagen:\n{e}")
 
 
-def campo_numero(parent, etiqueta, fila, col=0, ancho=14):
-    Label(parent, text=etiqueta).grid(row=fila, column=col, sticky="w", padx=8, pady=3)
-    e = Entry(parent, width=ancho)
-    e.grid(row=fila, column=col + 1, padx=4, pady=3, sticky="w")
-    # Bloquear caracteres no numéricos en tiempo real
-    def solo_numeros(event):
-        val = e.get()
-        limpio = re.sub(r'[^0-9\.\-]', '', val)
-        if val != limpio:
-            pos = e.index(INSERT)
-            e.delete(0, END)
-            e.insert(0, limpio)
-            e.icursor(min(pos, len(limpio)))
-    e.bind("<KeyRelease>", solo_numeros)
-    return e
+def guardar_imagen(ruta_origen, nombre_archivo):
+    """Copia y redimensiona la imagen a la carpeta del sistema. Devuelve la ruta destino."""
+    if not PIL_OK or not ruta_origen:
+        return None
+    try:
+        ext = os.path.splitext(ruta_origen)[1].lower()
+        if ext == ".gif":
+            ext = ".png"  # convertir GIF animado a PNG estático
+        destino = os.path.join(CARPETA_IMG, f"{nombre_archivo}{ext}")
+        img = Image.open(ruta_origen)
+        img.thumbnail((800, 600))  # redimensionar si es muy grande
+        img.save(destino)
+        return destino
+    except Exception as e:
+        messagebox.showerror("Error al guardar imagen", str(e))
+        return None
 
+# ============================================================
+# CONEXIÓN A LA BASE DE DATOS
+# ============================================================
 
-def campo_fecha(parent, etiqueta, fila, col=0):
-    Label(parent, text=etiqueta).grid(row=fila, column=col, sticky="w", padx=8, pady=3)
-    if TKCALENDAR_OK:
-        e = DateEntry(parent, width=14, date_pattern="yyyy-mm-dd",
-                      background="#2d6a4f", foreground="white", borderwidth=2)
-        e.grid(row=fila, column=col + 1, padx=4, pady=3, sticky="w")
-    else:
-        e = Entry(parent, width=14)
-        e.insert(0, "YYYY-MM-DD")
-        e.grid(row=fila, column=col + 1, padx=4, pady=3, sticky="w")
-    return e
-
-
-def obtener_fecha(widget):
-    """Obtiene la fecha de un DateEntry o Entry normal."""
-    if TKCALENDAR_OK and isinstance(widget, DateEntry):
-        return widget.get_date().strftime("%Y-%m-%d")
-    return widget.get()
-
-
-def tabla_con_scroll(parent, columnas, alto=12):
-    frame = Frame(parent)
-    frame.pack(fill="both", expand=True, padx=8, pady=6)
-
-    tv = ttk.Treeview(frame, columns=columnas, show="headings", height=alto)
-    for col in columnas:
-        tv.heading(col, text=col)
-        tv.column(col, width=max(80, len(col) * 9), anchor="center")
-
-    sb_v = ttk.Scrollbar(frame, orient="vertical",   command=tv.yview)
-    sb_h = ttk.Scrollbar(frame, orient="horizontal", command=tv.xview)
-    tv.configure(yscrollcommand=sb_v.set, xscrollcommand=sb_h.set)
-
-    sb_v.pack(side="right",  fill="y")
-    sb_h.pack(side="bottom", fill="x")
-    tv.pack(side="left", fill="both", expand=True)
-    return tv
-
-
-def limpiar_tabla(tv):
-    for i in tv.get_children():
-        tv.delete(i)
-
-
-def cargar_tabla(tv, filas):
-    limpiar_tabla(tv)
-    for fila in filas:
-        tv.insert("", END, values=[v if v is not None else "" for v in fila])
-
-# ════════════════════════════════════════════════════════════════════════════
-#  EXPORTACIÓN — EXCEL
-# ════════════════════════════════════════════════════════════════════════════
-
-ESTILO_HEADER = {
-    "font":      Font(bold=True, color="FFFFFF", size=11),
-    "fill":      PatternFill("solid", fgColor="1F4E79"),
-    "alignment": Alignment(horizontal="center", vertical="center"),
-    "border":    Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin")
+def conectar():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="construdata"
     )
-}
 
 
-def exportar_excel(titulo, columnas, filas, nombre_archivo="reporte.xlsx"):
-    if not OPENPYXL_OK:
-        mostrar_error("openpyxl no instalado. Ejecuta: pip install openpyxl")
+# ============================================================
+# VALIDACIONES SIMPLES
+# ============================================================
+
+def es_vacio(valor):
+    return valor.strip() == ""
+
+def es_numero(valor):
+    try:
+        float(valor)
+        return True
+    except ValueError:
+        return False
+
+def es_email_valido(valor):
+    return re.match(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$', valor.strip()) is not None
+
+
+# ============================================================
+# EXPORTAR A EXCEL
+# ============================================================
+
+def exportar_excel(titulo, columnas, filas):
+    try:
+        import openpyxl
+    except ImportError:
+        messagebox.showerror("Error", "Instala openpyxl:\npip install openpyxl")
         return
 
     ruta = filedialog.asksaveasfilename(
         defaultextension=".xlsx",
         filetypes=[("Excel", "*.xlsx")],
-        initialfile=nombre_archivo,
-        title="Guardar Excel"
+        initialfile=f"{titulo}.xlsx"
     )
     if not ruta:
         return
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = titulo[:31]
+    ws.title = titulo
 
-    # Título del reporte
-    ws.merge_cells(start_row=1, start_column=1,
-                   end_row=1, end_column=len(columnas))
-    celda_titulo = ws.cell(row=1, column=1, value=f"CONSTRUDATA — {titulo.upper()}")
-    celda_titulo.font      = Font(bold=True, size=14, color="FFFFFF")
-    celda_titulo.fill      = PatternFill("solid", fgColor="0D3B66")
-    celda_titulo.alignment = Alignment(horizontal="center")
-    ws.row_dimensions[1].height = 28
+    # Encabezados en negrita
+    for col_num, nombre in enumerate(columnas, 1):
+        celda = ws.cell(row=1, column=col_num, value=nombre)
+        celda.font = openpyxl.styles.Font(bold=True)
 
-    # Fecha generación
-    ws.merge_cells(start_row=2, start_column=1,
-                   end_row=2, end_column=len(columnas))
-    ws.cell(row=2, column=1,
-            value=f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    ws.cell(row=2, column=1).alignment = Alignment(horizontal="right")
-    ws.cell(row=2, column=1).font = Font(italic=True, color="666666")
-
-    # Encabezados
-    for ci, col in enumerate(columnas, 1):
-        c = ws.cell(row=3, column=ci, value=col)
-        c.font      = ESTILO_HEADER["font"]
-        c.fill      = ESTILO_HEADER["fill"]
-        c.alignment = ESTILO_HEADER["alignment"]
-        c.border    = ESTILO_HEADER["border"]
-    ws.row_dimensions[3].height = 20
-
-    # Datos con filas alternas
-    fill_par  = PatternFill("solid", fgColor="D6E4F0")
-    fill_impar = PatternFill("solid", fgColor="FFFFFF")
-    borde = Border(
-        left=Side(style="thin", color="CCCCCC"),
-        right=Side(style="thin", color="CCCCCC"),
-        bottom=Side(style="thin", color="CCCCCC")
-    )
-    for ri, fila in enumerate(filas, 4):
-        relleno = fill_par if ri % 2 == 0 else fill_impar
-        for ci, valor in enumerate(fila, 1):
-            c = ws.cell(row=ri, column=ci, value=valor)
-            c.fill   = relleno
-            c.border = borde
-            c.alignment = Alignment(horizontal="left")
-
-    # Autoajustar columnas
-    for col_idx, col_name in enumerate(columnas, 1):
-        max_w = len(str(col_name))
-        for fila in filas:
-            v = str(fila[col_idx - 1]) if col_idx - 1 < len(fila) else ""
-            max_w = max(max_w, len(v))
-        ws.column_dimensions[
-            openpyxl.utils.get_column_letter(col_idx)
-        ].width = min(max_w + 4, 40)
-
-    # Total de registros
-    fila_total = len(filas) + 4
-    ws.cell(row=fila_total, column=1,
-            value=f"Total de registros: {len(filas)}")
-    ws.cell(row=fila_total, column=1).font = Font(bold=True)
+    # Datos
+    for fila_num, fila in enumerate(filas, 2):
+        for col_num, valor in enumerate(fila, 1):
+            ws.cell(row=fila_num, column=col_num, value=valor)
 
     wb.save(ruta)
-    messagebox.showinfo("Excel exportado", f"Archivo guardado en:\n{ruta}")
+    messagebox.showinfo("Listo", f"Excel guardado en:\n{ruta}")
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  EXPORTACIÓN — PDF
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================
+# EXPORTAR A PDF
+# ============================================================
 
-def exportar_pdf(titulo, columnas, filas, nombre_archivo="reporte.pdf"):
-    if not FPDF_OK:
-        mostrar_error("fpdf2 no instalado. Ejecuta: pip install fpdf2")
+def exportar_pdf(titulo, columnas, filas):
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        messagebox.showerror("Error", "Instala fpdf2:\npip install fpdf2")
         return
 
     ruta = filedialog.asksaveasfilename(
         defaultextension=".pdf",
         filetypes=[("PDF", "*.pdf")],
-        initialfile=nombre_archivo,
-        title="Guardar PDF"
+        initialfile=f"{titulo}.pdf"
     )
     if not ruta:
         return
 
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = FPDF(orientation="L", format="A4")
     pdf.add_page()
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, f"Reporte: {titulo}", ln=True, align="C")
+    pdf.ln(4)
 
-    # Encabezado
-    pdf.set_fill_color(13, 59, 102)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 12, f"CONSTRUDATA — {titulo.upper()}", ln=True, align="C", fill=True)
+    ancho_col = (pdf.w - 20) / len(columnas)
 
-    pdf.set_font("Helvetica", "I", 9)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 6, f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}  |  "
-             f"Total registros: {len(filas)}", ln=True, align="R")
-    pdf.ln(3)
-
-    # Calcular ancho de columnas
-    page_w = pdf.w - 2 * pdf.l_margin
-    col_w  = page_w / len(columnas)
-
-    # Cabeceras de tabla
-    pdf.set_fill_color(31, 78, 121)
-    pdf.set_text_color(255, 255, 255)
+    # Encabezados
     pdf.set_font("Helvetica", "B", 9)
+    pdf.set_fill_color(200, 200, 200)
     for col in columnas:
-        pdf.cell(col_w, 8, str(col)[:20], border=1, align="C", fill=True)
+        pdf.cell(ancho_col, 8, str(col)[:18], border=1, fill=True, align="C")
     pdf.ln()
 
-    # Filas de datos con colores alternos
+    # Filas
     pdf.set_font("Helvetica", "", 8)
-    for ri, fila in enumerate(filas):
-        if ri % 2 == 0:
-            pdf.set_fill_color(214, 228, 240)
-        else:
-            pdf.set_fill_color(255, 255, 255)
-        pdf.set_text_color(30, 30, 30)
+    for fila in filas:
         for valor in fila:
-            texto = str(valor)[:25] if valor is not None else ""
-            pdf.cell(col_w, 7, texto, border=1, align="L", fill=True)
+            texto = str(valor)[:18] if valor is not None else ""
+            pdf.cell(ancho_col, 7, texto, border=1)
         pdf.ln()
 
-    # Pie de página
-    pdf.set_y(-15)
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 5, f"Sistema ConstruData — Página {pdf.page_no()}", align="C")
-
     pdf.output(ruta)
-    messagebox.showinfo("PDF exportado", f"Archivo guardado en:\n{ruta}")
+    messagebox.showinfo("Listo", f"PDF guardado en:\n{ruta}")
 
-# ════════════════════════════════════════════════════════════════════════════
-#  MÓDULO PROYECTOS
-# ════════════════════════════════════════════════════════════════════════════
 
-def build_proyectos(parent):
-    # ── Panel de formulario ──────────────────────────────────────────────
-    paned = PanedWindow(parent, orient=HORIZONTAL)
-    paned.pack(fill="both", expand=True)
-
-    frm_form = LabelFrame(paned, text="Datos del Proyecto", padx=8, pady=8)
-    paned.add(frm_form, minsize=360)
-
-    frm_right = Frame(paned)
-    paned.add(frm_right)
-
-    # Campos del formulario
-    e_cod   = campo_texto(frm_form,  "Código *",          0, max_len=20)
-    e_nom   = campo_texto(frm_form,  "Nombre *",          1, ancho=28, max_len=100)
-    e_dir   = campo_texto(frm_form,  "Dirección",         2, ancho=28)
-    e_tipo  = campo_texto(frm_form,  "Tipo construcción", 3, ancho=22)
-    e_area  = campo_numero(frm_form, "Área total (m²)",   4)
-    e_pisos = campo_numero(frm_form, "Pisos",             5)
-    e_ini   = campo_fecha(frm_form,  "Fecha inicio",      6)
-    e_fin   = campo_fecha(frm_form,  "Fecha fin est.",    7)
-    e_est   = campo_texto(frm_form,  "Estado",            8, max_len=50)
-    e_pre   = campo_numero(frm_form, "Presupuesto",       9)
-    e_ger   = campo_texto(frm_form,  "Gerente",           10, ancho=28)
-
-    # ── Imagen de portada del proyecto ──────────────────────────────────
-    frm_img = LabelFrame(frm_form, text="Imagen de portada", padx=6, pady=6)
-    frm_img.grid(row=11, column=0, columnspan=4, sticky="ew", pady=6, padx=4)
-
-    lbl_preview = Label(frm_img, text="Sin imagen",
-                        width=16, height=7, relief="groove", bg="#f0f0f0")
-    lbl_preview.pack(side=LEFT, padx=6)
-
-    var_img_ruta = StringVar()
-
-    frm_img_btns = Frame(frm_img)
-    frm_img_btns.pack(side=LEFT, padx=6)
-    Button(frm_img_btns, text="📁 Seleccionar imagen",
-           command=lambda: selector_imagen(lbl_preview, var_img_ruta)
-           ).pack(anchor="w", pady=2)
-    Button(frm_img_btns, text="🗑 Quitar imagen",
-           command=lambda: [var_img_ruta.set(""),
-                            lbl_preview.config(image="", text="Sin imagen")]
-           ).pack(anchor="w", pady=2)
-    Label(frm_img_btns, text="Formatos: JPG, PNG, GIF\nMáx. 5 MB",
-          fg="gray", font=("Arial", 8)).pack(anchor="w")
-
-    # ── Filtros de exportación ───────────────────────────────────────────
-    frm_filtros = LabelFrame(frm_form, text="Filtros de exportación", padx=6, pady=4)
-    frm_filtros.grid(row=12, column=0, columnspan=4, sticky="ew", pady=4, padx=4)
-
-    Label(frm_filtros, text="Estado:").grid(row=0, column=0, sticky="w")
-    cmb_estado = ttk.Combobox(frm_filtros, width=14,
-                               values=["Todos", "En proceso", "Planeacion", "Finalizado"])
-    cmb_estado.set("Todos")
-    cmb_estado.grid(row=0, column=1, padx=4)
-
-    Label(frm_filtros, text="Desde:").grid(row=0, column=2, padx=(8,2))
-    f_desde = campo_fecha(frm_filtros, "", 0, col=2)
-    f_hasta = campo_fecha(frm_filtros, "Hasta:", 0, col=4)
-
-    # ── Tabla ────────────────────────────────────────────────────────────
-    cols = ("ID","Código","Nombre","Dirección","Tipo","Área","Pisos",
-            "Inicio","Fin Est.","Estado","Presupuesto","Gerente")
-    tv = tabla_con_scroll(frm_right, cols, alto=14)
-
-    # ── Barra de botones ─────────────────────────────────────────────────
-    frm_btns = Frame(frm_right)
-    frm_btns.pack(fill="x", padx=8, pady=4)
-
-    def limpiar():
-        for e in [e_cod, e_nom, e_dir, e_tipo, e_area, e_pisos, e_est, e_pre, e_ger]:
-            e.delete(0, END)
-        var_img_ruta.set("")
-        lbl_preview.config(image="", text="Sin imagen")
-
-    def registrar():
-        # Validaciones
-        ok, cod  = validar_texto(e_cod.get(),  "Código",  1, 20)
-        if not ok: return mostrar_error(cod)
-        ok, nom  = validar_texto(e_nom.get(),  "Nombre",  2, 100)
-        if not ok: return mostrar_error(nom)
-
-        area_val = e_area.get().strip()
-        if area_val:
-            ok, area_val = validar_numero(area_val, "Área")
-            if not ok: return mostrar_error(area_val)
-
-        pisos_val = e_pisos.get().strip()
-        if pisos_val:
-            ok, pisos_val = validar_numero(pisos_val, "Pisos", entero=True)
-            if not ok: return mostrar_error(pisos_val)
-
-        pre_val = e_pre.get().strip()
-        if pre_val:
-            ok, pre_val = validar_numero(pre_val, "Presupuesto")
-            if not ok: return mostrar_error(pre_val)
-
-        fecha_ini = obtener_fecha(e_ini)
-        fecha_fin = obtener_fecha(e_fin)
-
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("SELECT id_proyecto FROM proyectos WHERE codigo=%s", (cod,))
-            if cur.fetchone():
-                con.close()
-                return mostrar_error(f"Ya existe un proyecto con código '{cod}'.")
-
-            # Guardar imagen si hay
-            ruta_guardada = None
-            if var_img_ruta.get():
-                ruta_guardada = guardar_imagen(var_img_ruta.get(), f"proyecto_{cod}")
-
-            cur.execute("""
-                INSERT INTO proyectos
-                    (codigo, nombre, direccion, tipo_construccion,
-                     area_total, cantidad_pisos, fecha_inicio,
-                     fecha_fin_estimada, estado, presupuesto, gerente_proyecto)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (cod, nom, e_dir.get(), e_tipo.get(),
-                  area_val or None, pisos_val or None,
-                  fecha_ini, fecha_fin,
-                  e_est.get(), pre_val or None, e_ger.get()))
-            con.commit(); con.close()
-            messagebox.showinfo("Éxito", "Proyecto registrado correctamente.")
-            limpiar(); ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def eliminar():
-        sel = tv.selection()
-        if not sel:
-            return mostrar_error("Selecciona un proyecto de la tabla.")
-        valores = tv.item(sel[0])["values"]
-        if not confirmar(f"¿Eliminar el proyecto '{valores[2]}'?\nEsta acción no se puede deshacer."):
-            return
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("DELETE FROM proyectos WHERE id_proyecto=%s", (valores[0],))
-            con.commit(); con.close()
-            messagebox.showinfo("Eliminado", "Proyecto eliminado.")
-            ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def ver():
-        try:
-            con = conectar(); cur = con.cursor()
-            estado_f = cmb_estado.get()
-            if estado_f == "Todos":
-                cur.execute("SELECT * FROM proyectos")
-            else:
-                cur.execute("SELECT * FROM proyectos WHERE estado=%s", (estado_f,))
-            cargar_tabla(tv, cur.fetchall())
-            con.close()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def get_filas_exportar():
-        try:
-            con = conectar(); cur = con.cursor()
-            estado_f = cmb_estado.get()
-            if estado_f == "Todos":
-                cur.execute("SELECT * FROM proyectos")
-            else:
-                cur.execute("SELECT * FROM proyectos WHERE estado=%s", (estado_f,))
-            return cur.fetchall()
-        except Exception:
-            return []
-
-    for txt, cmd, color in [
-        ("💾 Registrar",  registrar,  "#1a6e3c"),
-        ("🔍 Ver / Filtrar", ver,    "#0d5aa7"),
-        ("🗑 Eliminar",   eliminar,   "#b52b2b"),
-        ("🧹 Limpiar",    limpiar,    "#555555"),
-        ("📊 Excel",      lambda: exportar_excel(
-            "Proyectos", list(cols), get_filas_exportar(), "proyectos.xlsx"), "#217346"),
-        ("📄 PDF",        lambda: exportar_pdf(
-            "Proyectos", list(cols), get_filas_exportar(), "proyectos.pdf"),  "#c0392b"),
-    ]:
-        Button(frm_btns, text=txt, command=cmd, bg=color, fg="white",
-               width=14, relief="flat", cursor="hand2").pack(side=LEFT, padx=3)
-
-    ver()
-
-# ════════════════════════════════════════════════════════════════════════════
-#  MÓDULO EMPLEADOS
-# ════════════════════════════════════════════════════════════════════════════
-
-def build_empleados(parent):
-    paned = PanedWindow(parent, orient=HORIZONTAL)
-    paned.pack(fill="both", expand=True)
-
-    frm_form = LabelFrame(paned, text="Datos del Empleado", padx=8, pady=8)
-    paned.add(frm_form, minsize=340)
-    frm_right = Frame(paned)
-    paned.add(frm_right)
-
-    e_dni  = campo_texto(frm_form,  "DNI *",            0, max_len=20)
-    e_nom  = campo_texto(frm_form,  "Nombres *",        1, ancho=24)
-    e_ape  = campo_texto(frm_form,  "Apellidos *",      2, ancho=24)
-    e_nac  = campo_fecha(frm_form,  "Fecha nacimiento", 3)
-    e_dir  = campo_texto(frm_form,  "Dirección",        4, ancho=28)
-    e_tel  = campo_texto(frm_form,  "Teléfono",         5, max_len=20)
-    e_mail = campo_texto(frm_form,  "Email *",          6, ancho=28)
-    e_exp  = campo_numero(frm_form, "Años experiencia", 7)
-    e_sal  = campo_numero(frm_form, "Salario",          8)
-    e_cont = campo_texto(frm_form,  "Tipo contrato",    9, max_len=50)
-    e_car  = campo_texto(frm_form,  "Cargo",            10, max_len=50)
-    e_fcon = campo_fecha(frm_form,  "Fecha contratación",11)
-
-    # ── Foto de perfil ───────────────────────────────────────────────────
-    frm_img = LabelFrame(frm_form, text="Foto de perfil", padx=6, pady=6)
-    frm_img.grid(row=12, column=0, columnspan=4, sticky="ew", pady=6, padx=4)
-
-    lbl_foto = Label(frm_img, text="Sin foto",
-                     width=14, height=7, relief="groove", bg="#f0f0f0")
-    lbl_foto.pack(side=LEFT, padx=6)
-
-    var_foto = StringVar()
-    frm_fb = Frame(frm_img)
-    frm_fb.pack(side=LEFT, padx=6)
-    Button(frm_fb, text="📁 Seleccionar foto",
-           command=lambda: selector_imagen(lbl_foto, var_foto)).pack(anchor="w", pady=2)
-    Button(frm_fb, text="🗑 Quitar",
-           command=lambda: [var_foto.set(""),
-                            lbl_foto.config(image="", text="Sin foto")]
-           ).pack(anchor="w", pady=2)
-    Label(frm_fb, text="JPG, PNG, GIF — Máx. 5 MB",
-          fg="gray", font=("Arial", 8)).pack(anchor="w")
-
-    # ── Filtros ──────────────────────────────────────────────────────────
-    frm_fil = LabelFrame(frm_form, text="Filtro exportación", padx=6, pady=4)
-    frm_fil.grid(row=13, column=0, columnspan=4, sticky="ew", pady=4, padx=4)
-    Label(frm_fil, text="Cargo:").grid(row=0, column=0, sticky="w")
-    e_fil_cargo = Entry(frm_fil, width=18)
-    e_fil_cargo.grid(row=0, column=1, padx=4)
-    Label(frm_fil, text="(vacío = todos)", fg="gray", font=("Arial", 8)).grid(row=0, column=2, sticky="w")
-
-    # ── Tabla ────────────────────────────────────────────────────────────
-    cols = ("ID","DNI","Nombres","Apellidos","Nacimiento","Dirección",
-            "Teléfono","Email","Exp.","Salario","Contrato","Cargo","F.Contratación")
-    tv = tabla_con_scroll(frm_right, cols, alto=14)
-
-    frm_btns = Frame(frm_right)
-    frm_btns.pack(fill="x", padx=8, pady=4)
-
-    def limpiar():
-        for e in [e_dni, e_nom, e_ape, e_dir, e_tel, e_mail,
-                  e_exp, e_sal, e_cont, e_car]:
-            e.delete(0, END)
-        var_foto.set("")
-        lbl_foto.config(image="", text="Sin foto")
-
-    def registrar():
-        ok, dni_v = validar_texto(e_dni.get(), "DNI", 5, 20)
-        if not ok: return mostrar_error(dni_v)
-        ok, nom_v = validar_texto(e_nom.get(), "Nombres")
-        if not ok: return mostrar_error(nom_v)
-        ok, ape_v = validar_texto(e_ape.get(), "Apellidos")
-        if not ok: return mostrar_error(ape_v)
-        ok, mail_v = validar_email(e_mail.get())
-        if not ok: return mostrar_error(mail_v)
-
-        exp_v = e_exp.get().strip()
-        if exp_v:
-            ok, exp_v = validar_numero(exp_v, "Años experiencia", entero=True)
-            if not ok: return mostrar_error(exp_v)
-
-        sal_v = e_sal.get().strip()
-        if sal_v:
-            ok, sal_v = validar_numero(sal_v, "Salario")
-            if not ok: return mostrar_error(sal_v)
-
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("SELECT id_empleado FROM empleados WHERE dni=%s", (dni_v,))
-            if cur.fetchone():
-                con.close()
-                return mostrar_error(f"Ya existe un empleado con DNI '{dni_v}'.")
-
-            if var_foto.get():
-                guardar_imagen(var_foto.get(), f"empleado_{dni_v}")
-
-            cur.execute("""
-                INSERT INTO empleados
-                    (dni, nombres, apellidos, fecha_nacimiento, direccion,
-                     telefono, anios_experiencia, salario, tipo_contrato,
-                     cargo, fecha_contratacion)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (dni_v, nom_v, ape_v,
-                  obtener_fecha(e_nac), e_dir.get(), e_tel.get(),
-                  exp_v or None, sal_v or None,
-                  e_cont.get(), e_car.get(), obtener_fecha(e_fcon)))
-            con.commit(); con.close()
-            messagebox.showinfo("Éxito", "Empleado registrado.")
-            limpiar(); ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def eliminar():
-        sel = tv.selection()
-        if not sel:
-            return mostrar_error("Selecciona un empleado de la tabla.")
-        v = tv.item(sel[0])["values"]
-        if not confirmar(f"¿Eliminar al empleado '{v[2]} {v[3]}'?"):
-            return
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("DELETE FROM empleados WHERE id_empleado=%s", (v[0],))
-            con.commit(); con.close()
-            messagebox.showinfo("Eliminado", "Empleado eliminado.")
-            ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def ver():
-        try:
-            con = conectar(); cur = con.cursor()
-            cargo_f = e_fil_cargo.get().strip()
-            if cargo_f:
-                cur.execute("""SELECT id_empleado,dni,nombres,apellidos,
-                                      fecha_nacimiento,direccion,telefono,
-                                      anios_experiencia,salario,tipo_contrato,
-                                      cargo,fecha_contratacion
-                               FROM empleados WHERE cargo LIKE %s""",
-                            (f"%{cargo_f}%",))
-            else:
-                cur.execute("""SELECT id_empleado,dni,nombres,apellidos,
-                                      fecha_nacimiento,direccion,telefono,
-                                      anios_experiencia,salario,tipo_contrato,
-                                      cargo,fecha_contratacion
-                               FROM empleados""")
-            cargar_tabla(tv, cur.fetchall())
-            con.close()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def get_filas():
-        con = conectar(); cur = con.cursor()
-        cargo_f = e_fil_cargo.get().strip()
-        if cargo_f:
-            cur.execute("SELECT * FROM empleados WHERE cargo LIKE %s",
-                        (f"%{cargo_f}%",))
-        else:
-            cur.execute("SELECT * FROM empleados")
-        filas = cur.fetchall(); con.close()
-        return filas
-
-    for txt, cmd, color in [
-        ("💾 Registrar",     registrar, "#1a6e3c"),
-        ("🔍 Ver / Filtrar", ver,       "#0d5aa7"),
-        ("🗑 Eliminar",      eliminar,  "#b52b2b"),
-        ("🧹 Limpiar",       limpiar,   "#555555"),
-        ("📊 Excel",         lambda: exportar_excel(
-            "Empleados", list(cols), get_filas(), "empleados.xlsx"), "#217346"),
-        ("📄 PDF",           lambda: exportar_pdf(
-            "Empleados", list(cols), get_filas(), "empleados.pdf"),  "#c0392b"),
-    ]:
-        Button(frm_btns, text=txt, command=cmd, bg=color, fg="white",
-               width=14, relief="flat", cursor="hand2").pack(side=LEFT, padx=3)
-
-    ver()
-
-# ════════════════════════════════════════════════════════════════════════════
-#  MÓDULO MATERIALES
-# ════════════════════════════════════════════════════════════════════════════
-
-def build_materiales(parent):
-    paned = PanedWindow(parent, orient=HORIZONTAL)
-    paned.pack(fill="both", expand=True)
-
-    frm_form = LabelFrame(paned, text="Datos del Material", padx=8, pady=8)
-    paned.add(frm_form, minsize=300)
-    frm_right = Frame(paned)
-    paned.add(frm_right)
-
-    e_cod  = campo_texto(frm_form,  "Código *",         0, max_len=20)
-    e_des  = campo_texto(frm_form,  "Descripción *",    1, ancho=28)
-    e_cat  = campo_texto(frm_form,  "Categoría",        2, max_len=50)
-    e_uni  = campo_texto(frm_form,  "Unidad medida",    3, max_len=20)
-    e_esp  = campo_texto(frm_form,  "Especificaciones", 4, ancho=28, max_len=200)
-    e_pro  = campo_numero(frm_form, "ID Proveedor",     5)
-
-    # Filtros exportación
-    frm_fil = LabelFrame(frm_form, text="Filtro exportación", padx=6, pady=4)
-    frm_fil.grid(row=6, column=0, columnspan=4, sticky="ew", pady=4, padx=4)
-    Label(frm_fil, text="Categoría:").grid(row=0, column=0, sticky="w")
-    e_fil_cat = Entry(frm_fil, width=18)
-    e_fil_cat.grid(row=0, column=1, padx=4)
-
-    cols = ("ID","Código","Descripción","Categoría","Unidad","Especificaciones","ID Proveedor")
-    tv = tabla_con_scroll(frm_right, cols, alto=14)
-    frm_btns = Frame(frm_right)
-    frm_btns.pack(fill="x", padx=8, pady=4)
-
-    def limpiar():
-        for e in [e_cod, e_des, e_cat, e_uni, e_esp, e_pro]:
-            e.delete(0, END)
-
-    def registrar():
-        ok, cod = validar_texto(e_cod.get(), "Código", 1, 20)
-        if not ok: return mostrar_error(cod)
-        ok, des = validar_texto(e_des.get(), "Descripción")
-        if not ok: return mostrar_error(des)
-
-        pro_v = e_pro.get().strip()
-        if pro_v:
-            ok, pro_v = validar_numero(pro_v, "ID Proveedor", entero=True)
-            if not ok: return mostrar_error(pro_v)
-
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("SELECT id_material FROM materiales WHERE codigo=%s", (cod,))
-            if cur.fetchone():
-                con.close()
-                return mostrar_error(f"Ya existe un material con código '{cod}'.")
-            cur.execute("""
-                INSERT INTO materiales
-                    (codigo, descripcion, categoria, unidad_medida,
-                     especificaciones, proveedor_preferido)
-                VALUES (%s,%s,%s,%s,%s,%s)
-            """, (cod, des, e_cat.get(), e_uni.get(),
-                  e_esp.get(), pro_v or None))
-            con.commit(); con.close()
-            messagebox.showinfo("Éxito", "Material registrado.")
-            limpiar(); ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def eliminar():
-        sel = tv.selection()
-        if not sel: return mostrar_error("Selecciona un material.")
-        v = tv.item(sel[0])["values"]
-        if not confirmar(f"¿Eliminar el material '{v[2]}'?"): return
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("DELETE FROM materiales WHERE id_material=%s", (v[0],))
-            con.commit(); con.close()
-            messagebox.showinfo("Eliminado", "Material eliminado.")
-            ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def ver():
-        try:
-            con = conectar(); cur = con.cursor()
-            cat_f = e_fil_cat.get().strip()
-            if cat_f:
-                cur.execute("SELECT * FROM materiales WHERE categoria LIKE %s",
-                            (f"%{cat_f}%",))
-            else:
-                cur.execute("SELECT * FROM materiales")
-            cargar_tabla(tv, cur.fetchall())
-            con.close()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def get_filas():
-        con = conectar(); cur = con.cursor()
-        cat_f = e_fil_cat.get().strip()
-        if cat_f:
-            cur.execute("SELECT * FROM materiales WHERE categoria LIKE %s",
-                        (f"%{cat_f}%",))
-        else:
-            cur.execute("SELECT * FROM materiales")
-        filas = cur.fetchall(); con.close(); return filas
-
-    for txt, cmd, color in [
-        ("💾 Registrar",     registrar, "#1a6e3c"),
-        ("🔍 Ver / Filtrar", ver,       "#0d5aa7"),
-        ("🗑 Eliminar",      eliminar,  "#b52b2b"),
-        ("🧹 Limpiar",       limpiar,   "#555555"),
-        ("📊 Excel",         lambda: exportar_excel(
-            "Materiales", list(cols), get_filas(), "materiales.xlsx"), "#217346"),
-        ("📄 PDF",           lambda: exportar_pdf(
-            "Materiales", list(cols), get_filas(), "materiales.pdf"),  "#c0392b"),
-    ]:
-        Button(frm_btns, text=txt, command=cmd, bg=color, fg="white",
-               width=14, relief="flat", cursor="hand2").pack(side=LEFT, padx=3)
-
-    ver()
-
-# ════════════════════════════════════════════════════════════════════════════
-#  MÓDULO PROVEEDORES
-# ════════════════════════════════════════════════════════════════════════════
-
-def build_proveedores(parent):
-    paned = PanedWindow(parent, orient=HORIZONTAL)
-    paned.pack(fill="both", expand=True)
-
-    frm_form = LabelFrame(paned, text="Datos del Proveedor", padx=8, pady=8)
-    paned.add(frm_form, minsize=280)
-    frm_right = Frame(paned)
-    paned.add(frm_right)
-
-    e_nom  = campo_texto(frm_form, "Nombre *",    0, ancho=26, max_len=100)
-    e_tel  = campo_texto(frm_form, "Teléfono",    1, max_len=20)
-    e_dir  = campo_texto(frm_form, "Dirección",   2, ancho=26)
-    e_mail = campo_texto(frm_form, "Email *",     3, ancho=26)
-
-    cols = ("ID","Nombre","Teléfono","Dirección","Email")
-    tv = tabla_con_scroll(frm_right, cols, alto=16)
-    frm_btns = Frame(frm_right)
-    frm_btns.pack(fill="x", padx=8, pady=4)
-
-    def limpiar():
-        for e in [e_nom, e_tel, e_dir, e_mail]:
-            e.delete(0, END)
-
-    def registrar():
-        ok, nom_v = validar_texto(e_nom.get(), "Nombre")
-        if not ok: return mostrar_error(nom_v)
-        ok, mail_v = validar_email(e_mail.get())
-        if not ok: return mostrar_error(mail_v)
-
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("SELECT id_proveedor FROM proveedores WHERE nombre=%s AND telefono=%s",
-                        (nom_v, e_tel.get()))
-            if cur.fetchone():
-                con.close()
-                return mostrar_error("Ya existe ese proveedor.")
-            cur.execute("""
-                INSERT INTO proveedores (nombre, telefono, direccion, email)
-                VALUES (%s,%s,%s,%s)
-            """, (nom_v, e_tel.get(), e_dir.get(), mail_v))
-            con.commit(); con.close()
-            messagebox.showinfo("Éxito", "Proveedor registrado.")
-            limpiar(); ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def eliminar():
-        sel = tv.selection()
-        if not sel: return mostrar_error("Selecciona un proveedor.")
-        v = tv.item(sel[0])["values"]
-        if not confirmar(f"¿Eliminar al proveedor '{v[1]}'?"): return
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("DELETE FROM proveedores WHERE id_proveedor=%s", (v[0],))
-            con.commit(); con.close()
-            messagebox.showinfo("Eliminado", "Proveedor eliminado.")
-            ver()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def ver():
-        try:
-            con = conectar(); cur = con.cursor()
-            cur.execute("SELECT id_proveedor, nombre, telefono, direccion, email FROM proveedores")
-            cargar_tabla(tv, cur.fetchall())
-            con.close()
-        except mysql.connector.Error as err:
-            mostrar_error(str(err))
-
-    def get_filas():
-        con = conectar(); cur = con.cursor()
-        cur.execute("SELECT id_proveedor, nombre, telefono, direccion, email FROM proveedores")
-        filas = cur.fetchall(); con.close(); return filas
-
-    for txt, cmd, color in [
-        ("💾 Registrar",  registrar, "#1a6e3c"),
-        ("🔍 Ver todos",  ver,       "#0d5aa7"),
-        ("🗑 Eliminar",   eliminar,  "#b52b2b"),
-        ("🧹 Limpiar",    limpiar,   "#555555"),
-        ("📊 Excel",      lambda: exportar_excel(
-            "Proveedores", list(cols), get_filas(), "proveedores.xlsx"), "#217346"),
-        ("📄 PDF",        lambda: exportar_pdf(
-            "Proveedores", list(cols), get_filas(), "proveedores.pdf"),  "#c0392b"),
-    ]:
-        Button(frm_btns, text=txt, command=cmd, bg=color, fg="white",
-               width=14, relief="flat", cursor="hand2").pack(side=LEFT, padx=3)
-
-    ver()
-
-# ════════════════════════════════════════════════════════════════════════════
-#  VENTANA PRINCIPAL
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================
+# VENTANA PRINCIPAL
+# ============================================================
 
 ventana = Tk()
 ventana.title("Sistema ConstruData")
-ventana.geometry("1200x700")
+ventana.geometry("950x600")
 ventana.resizable(True, True)
 
-# Barra de título
-hdr = Frame(ventana, bg="#0d3b66", height=44)
-hdr.pack(fill="x")
-Label(hdr, text="  🏗  SISTEMA CONSTRUDATA — Gestión de Construcción",
-      bg="#0d3b66", fg="white",
-      font=("Segoe UI", 13, "bold"), pady=8).pack(side=LEFT)
-Label(hdr, text=f"  {datetime.now().strftime('%d/%m/%Y')}  ",
-      bg="#0d3b66", fg="#aac4e0",
-      font=("Segoe UI", 9)).pack(side=RIGHT)
+notebook = ttk.Notebook(ventana)
+notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
-# Estado de librerías
-libs = []
-if not TKCALENDAR_OK: libs.append("tkcalendar")
-if not OPENPYXL_OK:   libs.append("openpyxl")
-if not FPDF_OK:       libs.append("fpdf2")
-if not PIL_OK:        libs.append("Pillow")
-if libs:
-    aviso = Frame(ventana, bg="#fff3cd")
-    aviso.pack(fill="x")
-    Label(aviso,
-          text=f"⚠  Librerías faltantes: {', '.join(libs)}  |  "
-               f"Instala con: pip install {' '.join(libs)}",
-          bg="#fff3cd", fg="#856404",
-          font=("Segoe UI", 9), pady=3).pack()
 
-# Notebook
-style = ttk.Style()
-style.configure("TNotebook.Tab", font=("Segoe UI", 10, "bold"), padding=[12, 6])
+# ============================================================
+# PESTAÑA PROYECTOS
+# ============================================================
 
-nb = ttk.Notebook(ventana)
-nb.pack(fill="both", expand=True)
+tab_proy = Frame(notebook)
+notebook.add(tab_proy, text="  Proyectos  ")
 
-for titulo, builder in [
-    ("🏗  Proyectos",   build_proyectos),
-    ("👷  Empleados",   build_empleados),
-    ("🧱  Materiales",  build_materiales),
-    ("🚚  Proveedores", build_proveedores),
-]:
-    f = Frame(nb)
-    nb.add(f, text=titulo)
-    builder(f)
+# --- Formulario ---
+frm = LabelFrame(tab_proy, text="Datos del proyecto", padx=10, pady=10)
+frm.pack(side=LEFT, fill="y", padx=10, pady=10)
 
-# Barra de estado
-Frame(ventana, height=1, bg="#cccccc").pack(fill="x")
-Label(ventana,
-      text="  Conectado a: construdata@localhost  |  "
-           f"Imágenes guardadas en: {IMG_DIR}",
-      anchor="w", fg="#555555", font=("Segoe UI", 8), pady=3
-      ).pack(fill="x")
+Label(frm, text="Código *").grid(row=0, column=0, sticky="w", pady=3)
+e_proy_cod = Entry(frm, width=22)
+e_proy_cod.grid(row=0, column=1, pady=3)
 
+Label(frm, text="Nombre *").grid(row=1, column=0, sticky="w", pady=3)
+e_proy_nom = Entry(frm, width=22)
+e_proy_nom.grid(row=1, column=1, pady=3)
+
+Label(frm, text="Dirección").grid(row=2, column=0, sticky="w", pady=3)
+e_proy_dir = Entry(frm, width=22)
+e_proy_dir.grid(row=2, column=1, pady=3)
+
+Label(frm, text="Tipo").grid(row=3, column=0, sticky="w", pady=3)
+e_proy_tipo = Entry(frm, width=22)
+e_proy_tipo.grid(row=3, column=1, pady=3)
+
+Label(frm, text="Área m²").grid(row=4, column=0, sticky="w", pady=3)
+e_proy_area = Entry(frm, width=22)
+e_proy_area.grid(row=4, column=1, pady=3)
+
+Label(frm, text="Pisos").grid(row=5, column=0, sticky="w", pady=3)
+e_proy_pisos = Entry(frm, width=22)
+e_proy_pisos.grid(row=5, column=1, pady=3)
+
+Label(frm, text="Estado").grid(row=6, column=0, sticky="w", pady=3)
+e_proy_estado = Entry(frm, width=22)
+e_proy_estado.grid(row=6, column=1, pady=3)
+
+Label(frm, text="Presupuesto").grid(row=7, column=0, sticky="w", pady=3)
+e_proy_pre = Entry(frm, width=22)
+e_proy_pre.grid(row=7, column=1, pady=3)
+
+Label(frm, text="Gerente").grid(row=8, column=0, sticky="w", pady=3)
+e_proy_ger = Entry(frm, width=22)
+e_proy_ger.grid(row=8, column=1, pady=3)
+
+# --- Imagen del proyecto ---
+frm_img_proy = LabelFrame(frm, text="Imagen del proyecto", padx=6, pady=6)
+frm_img_proy.grid(row=9, column=0, columnspan=2, sticky="ew", pady=6)
+
+lbl_img_proy = Label(frm_img_proy, text="Sin imagen", width=16, height=6,
+                     relief="groove", bg="#f0f0f0")
+lbl_img_proy.pack(side=LEFT, padx=6)
+
+var_img_proy = StringVar()
+
+frm_img_proy_btns = Frame(frm_img_proy)
+frm_img_proy_btns.pack(side=LEFT, padx=8)
+Button(frm_img_proy_btns, text="📁 Seleccionar imagen",
+       command=lambda: seleccionar_imagen(lbl_img_proy, var_img_proy),
+       width=20).pack(pady=3)
+Button(frm_img_proy_btns, text="🗑 Quitar imagen",
+       command=lambda: [var_img_proy.set(""),
+                        lbl_img_proy.config(image="", text="Sin imagen")],
+       width=20).pack(pady=3)
+Label(frm_img_proy_btns, text="JPG, PNG, GIF — Máx. 5 MB",
+      fg="gray", font=("Arial", 8)).pack()
+
+def limpiar_proyectos():
+    for e in [e_proy_cod, e_proy_nom, e_proy_dir, e_proy_tipo,
+              e_proy_area, e_proy_pisos, e_proy_estado, e_proy_pre, e_proy_ger]:
+        e.delete(0, END)
+    var_img_proy.set("")
+    lbl_img_proy.config(image="", text="Sin imagen")
+
+def registrar_proyecto():
+    if es_vacio(e_proy_cod.get()) or es_vacio(e_proy_nom.get()):
+        messagebox.showwarning("Atención", "Código y Nombre son obligatorios.")
+        return
+    if e_proy_area.get() and not es_numero(e_proy_area.get()):
+        messagebox.showwarning("Atención", "El Área debe ser un número.")
+        return
+    if e_proy_pisos.get() and not es_numero(e_proy_pisos.get()):
+        messagebox.showwarning("Atención", "Los Pisos deben ser un número.")
+        return
+    if e_proy_pre.get() and not es_numero(e_proy_pre.get()):
+        messagebox.showwarning("Atención", "El Presupuesto debe ser un número.")
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_proyecto FROM proyectos WHERE codigo=%s", (e_proy_cod.get(),))
+        if cur.fetchone():
+            messagebox.showerror("Error", "Ya existe un proyecto con ese código.")
+            con.close()
+            return
+        cur.execute("""
+            INSERT INTO proyectos
+                (codigo, nombre, direccion, tipo_construccion,
+                 area_total, cantidad_pisos, estado, presupuesto, gerente_proyecto)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            e_proy_cod.get(), e_proy_nom.get(), e_proy_dir.get(), e_proy_tipo.get(),
+            e_proy_area.get() or None, e_proy_pisos.get() or None,
+            e_proy_estado.get(), e_proy_pre.get() or None, e_proy_ger.get()
+        ))
+        con.commit()
+        con.close()
+        # Guardar imagen si se seleccionó una
+        if var_img_proy.get():
+            guardar_imagen(var_img_proy.get(), f"proyecto_{e_proy_cod.get()}")
+        messagebox.showinfo("Listo", "Proyecto registrado correctamente.")
+        limpiar_proyectos()
+        ver_proyectos()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def ver_proyectos():
+    for fila in tv_proy.get_children():
+        tv_proy.delete(fila)
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_proyecto, codigo, nombre, direccion, tipo_construccion, "
+                    "area_total, cantidad_pisos, estado, presupuesto, gerente_proyecto FROM proyectos")
+        for row in cur.fetchall():
+            tv_proy.insert("", END, values=row)
+        con.close()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def eliminar_proyecto():
+    sel = tv_proy.selection()
+    if not sel:
+        messagebox.showwarning("Atención", "Selecciona un proyecto de la tabla.")
+        return
+    valores = tv_proy.item(sel[0])["values"]
+    if not messagebox.askyesno("Confirmar", f"¿Eliminar el proyecto '{valores[2]}'?"):
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("DELETE FROM proyectos WHERE id_proyecto=%s", (valores[0],))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Proyecto eliminado.")
+        ver_proyectos()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+# --- Botones ---
+frm_btns = Frame(frm)
+frm_btns.grid(row=10, column=0, columnspan=2, pady=10)
+
+Button(frm_btns, text="Registrar",   command=registrar_proyecto, bg="#2e7d32", fg="white", width=10).grid(row=0, column=0, padx=4)
+Button(frm_btns, text="Ver todos",   command=ver_proyectos,      bg="#1565c0", fg="white", width=10).grid(row=0, column=1, padx=4)
+Button(frm_btns, text="Eliminar",    command=eliminar_proyecto,  bg="#c62828", fg="white", width=10).grid(row=1, column=0, padx=4, pady=4)
+Button(frm_btns, text="Limpiar",     command=limpiar_proyectos,  bg="#555555", fg="white", width=10).grid(row=1, column=1, padx=4, pady=4)
+
+COLS_PROY = ("ID","Código","Nombre","Dirección","Tipo","Área","Pisos","Estado","Presupuesto","Gerente")
+Button(frm_btns, text="Exportar Excel", command=lambda: exportar_excel(
+    "Proyectos", COLS_PROY,
+    [tv_proy.item(i)["values"] for i in tv_proy.get_children()]
+), bg="#217346", fg="white", width=22).grid(row=2, column=0, columnspan=2, pady=2)
+
+Button(frm_btns, text="Exportar PDF", command=lambda: exportar_pdf(
+    "Proyectos", COLS_PROY,
+    [tv_proy.item(i)["values"] for i in tv_proy.get_children()]
+), bg="#b71c1c", fg="white", width=22).grid(row=3, column=0, columnspan=2, pady=2)
+
+# --- Tabla ---
+frm_tabla = Frame(tab_proy)
+frm_tabla.pack(side=LEFT, fill="both", expand=True, padx=10, pady=10)
+
+tv_proy = ttk.Treeview(frm_tabla, columns=COLS_PROY, show="headings", height=18)
+for col in COLS_PROY:
+    tv_proy.heading(col, text=col)
+    tv_proy.column(col, width=90, anchor="center")
+
+sb_v = ttk.Scrollbar(frm_tabla, orient="vertical",   command=tv_proy.yview)
+sb_h = ttk.Scrollbar(frm_tabla, orient="horizontal", command=tv_proy.xview)
+tv_proy.configure(yscrollcommand=sb_v.set, xscrollcommand=sb_h.set)
+sb_v.pack(side=RIGHT, fill="y")
+sb_h.pack(side=BOTTOM, fill="x")
+tv_proy.pack(fill="both", expand=True)
+
+ver_proyectos()
+
+
+# ============================================================
+# PESTAÑA EMPLEADOS
+# ============================================================
+
+tab_emp = Frame(notebook)
+notebook.add(tab_emp, text="  Empleados  ")
+
+frm2 = LabelFrame(tab_emp, text="Datos del empleado", padx=10, pady=10)
+frm2.pack(side=LEFT, fill="y", padx=10, pady=10)
+
+Label(frm2, text="DNI *").grid(row=0, column=0, sticky="w", pady=3)
+e_emp_dni = Entry(frm2, width=22)
+e_emp_dni.grid(row=0, column=1, pady=3)
+
+Label(frm2, text="Nombres *").grid(row=1, column=0, sticky="w", pady=3)
+e_emp_nom = Entry(frm2, width=22)
+e_emp_nom.grid(row=1, column=1, pady=3)
+
+Label(frm2, text="Apellidos *").grid(row=2, column=0, sticky="w", pady=3)
+e_emp_ape = Entry(frm2, width=22)
+e_emp_ape.grid(row=2, column=1, pady=3)
+
+Label(frm2, text="Teléfono").grid(row=3, column=0, sticky="w", pady=3)
+e_emp_tel = Entry(frm2, width=22)
+e_emp_tel.grid(row=3, column=1, pady=3)
+
+Label(frm2, text="Cargo").grid(row=4, column=0, sticky="w", pady=3)
+e_emp_car = Entry(frm2, width=22)
+e_emp_car.grid(row=4, column=1, pady=3)
+
+Label(frm2, text="Salario").grid(row=5, column=0, sticky="w", pady=3)
+e_emp_sal = Entry(frm2, width=22)
+e_emp_sal.grid(row=5, column=1, pady=3)
+
+Label(frm2, text="Tipo contrato").grid(row=6, column=0, sticky="w", pady=3)
+e_emp_cont = Entry(frm2, width=22)
+e_emp_cont.grid(row=6, column=1, pady=3)
+
+# --- Foto del empleado ---
+frm_img_emp = LabelFrame(frm2, text="Foto del empleado", padx=6, pady=6)
+frm_img_emp.grid(row=7, column=0, columnspan=2, sticky="ew", pady=6)
+
+lbl_img_emp = Label(frm_img_emp, text="Sin foto", width=16, height=6,
+                    relief="groove", bg="#f0f0f0")
+lbl_img_emp.pack(side=LEFT, padx=6)
+
+var_img_emp = StringVar()
+
+frm_img_emp_btns = Frame(frm_img_emp)
+frm_img_emp_btns.pack(side=LEFT, padx=8)
+Button(frm_img_emp_btns, text="📁 Seleccionar foto",
+       command=lambda: seleccionar_imagen(lbl_img_emp, var_img_emp),
+       width=20).pack(pady=3)
+Button(frm_img_emp_btns, text="🗑 Quitar foto",
+       command=lambda: [var_img_emp.set(""),
+                        lbl_img_emp.config(image="", text="Sin foto")],
+       width=20).pack(pady=3)
+Label(frm_img_emp_btns, text="JPG, PNG, GIF — Máx. 5 MB",
+      fg="gray", font=("Arial", 8)).pack()
+
+def limpiar_empleados():
+    for e in [e_emp_dni, e_emp_nom, e_emp_ape, e_emp_tel,
+              e_emp_car, e_emp_sal, e_emp_cont]:
+        e.delete(0, END)
+    var_img_emp.set("")
+    lbl_img_emp.config(image="", text="Sin foto")
+
+def registrar_empleado():
+    if es_vacio(e_emp_dni.get()) or es_vacio(e_emp_nom.get()) or es_vacio(e_emp_ape.get()):
+        messagebox.showwarning("Atención", "DNI, Nombres y Apellidos son obligatorios.")
+        return
+    if e_emp_sal.get() and not es_numero(e_emp_sal.get()):
+        messagebox.showwarning("Atención", "El Salario debe ser un número.")
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_empleado FROM empleados WHERE dni=%s", (e_emp_dni.get(),))
+        if cur.fetchone():
+            messagebox.showerror("Error", "Ya existe un empleado con ese DNI.")
+            con.close()
+            return
+        cur.execute("""
+            INSERT INTO empleados (dni, nombres, apellidos, telefono, cargo, salario, tipo_contrato)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            e_emp_dni.get(), e_emp_nom.get(), e_emp_ape.get(),
+            e_emp_tel.get(), e_emp_car.get(),
+            e_emp_sal.get() or None, e_emp_cont.get()
+        ))
+        con.commit()
+        con.close()
+        # Guardar foto si se seleccionó una
+        if var_img_emp.get():
+            guardar_imagen(var_img_emp.get(), f"empleado_{e_emp_dni.get()}")
+        messagebox.showinfo("Listo", "Empleado registrado correctamente.")
+        limpiar_empleados()
+        ver_empleados()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def ver_empleados():
+    for fila in tv_emp.get_children():
+        tv_emp.delete(fila)
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_empleado, dni, nombres, apellidos, "
+                    "telefono, cargo, salario, tipo_contrato FROM empleados")
+        for row in cur.fetchall():
+            tv_emp.insert("", END, values=row)
+        con.close()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def eliminar_empleado():
+    sel = tv_emp.selection()
+    if not sel:
+        messagebox.showwarning("Atención", "Selecciona un empleado de la tabla.")
+        return
+    valores = tv_emp.item(sel[0])["values"]
+    if not messagebox.askyesno("Confirmar", f"¿Eliminar a '{valores[2]} {valores[3]}'?"):
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("DELETE FROM empleados WHERE id_empleado=%s", (valores[0],))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Empleado eliminado.")
+        ver_empleados()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+frm2_btns = Frame(frm2)
+frm2_btns.grid(row=8, column=0, columnspan=2, pady=10)
+
+Button(frm2_btns, text="Registrar",  command=registrar_empleado, bg="#2e7d32", fg="white", width=10).grid(row=0, column=0, padx=4)
+Button(frm2_btns, text="Ver todos",  command=ver_empleados,      bg="#1565c0", fg="white", width=10).grid(row=0, column=1, padx=4)
+Button(frm2_btns, text="Eliminar",   command=eliminar_empleado,  bg="#c62828", fg="white", width=10).grid(row=1, column=0, padx=4, pady=4)
+Button(frm2_btns, text="Limpiar",    command=limpiar_empleados,  bg="#555555", fg="white", width=10).grid(row=1, column=1, padx=4, pady=4)
+
+COLS_EMP = ("ID","DNI","Nombres","Apellidos","Teléfono","Cargo","Salario","Contrato")
+Button(frm2_btns, text="Exportar Excel", command=lambda: exportar_excel(
+    "Empleados", COLS_EMP,
+    [tv_emp.item(i)["values"] for i in tv_emp.get_children()]
+), bg="#217346", fg="white", width=22).grid(row=2, column=0, columnspan=2, pady=2)
+
+Button(frm2_btns, text="Exportar PDF", command=lambda: exportar_pdf(
+    "Empleados", COLS_EMP,
+    [tv_emp.item(i)["values"] for i in tv_emp.get_children()]
+), bg="#b71c1c", fg="white", width=22).grid(row=3, column=0, columnspan=2, pady=2)
+
+frm2_tabla = Frame(tab_emp)
+frm2_tabla.pack(side=LEFT, fill="both", expand=True, padx=10, pady=10)
+
+tv_emp = ttk.Treeview(frm2_tabla, columns=COLS_EMP, show="headings", height=18)
+for col in COLS_EMP:
+    tv_emp.heading(col, text=col)
+    tv_emp.column(col, width=100, anchor="center")
+
+sb2_v = ttk.Scrollbar(frm2_tabla, orient="vertical",   command=tv_emp.yview)
+sb2_h = ttk.Scrollbar(frm2_tabla, orient="horizontal", command=tv_emp.xview)
+tv_emp.configure(yscrollcommand=sb2_v.set, xscrollcommand=sb2_h.set)
+sb2_v.pack(side=RIGHT, fill="y")
+sb2_h.pack(side=BOTTOM, fill="x")
+tv_emp.pack(fill="both", expand=True)
+
+ver_empleados()
+
+
+# ============================================================
+# PESTAÑA MATERIALES
+# ============================================================
+
+tab_mat = Frame(notebook)
+notebook.add(tab_mat, text="  Materiales  ")
+
+frm3 = LabelFrame(tab_mat, text="Datos del material", padx=10, pady=10)
+frm3.pack(side=LEFT, fill="y", padx=10, pady=10)
+
+Label(frm3, text="Código *").grid(row=0, column=0, sticky="w", pady=3)
+e_mat_cod = Entry(frm3, width=22)
+e_mat_cod.grid(row=0, column=1, pady=3)
+
+Label(frm3, text="Descripción *").grid(row=1, column=0, sticky="w", pady=3)
+e_mat_des = Entry(frm3, width=22)
+e_mat_des.grid(row=1, column=1, pady=3)
+
+Label(frm3, text="Categoría").grid(row=2, column=0, sticky="w", pady=3)
+e_mat_cat = Entry(frm3, width=22)
+e_mat_cat.grid(row=2, column=1, pady=3)
+
+Label(frm3, text="Unidad medida").grid(row=3, column=0, sticky="w", pady=3)
+e_mat_uni = Entry(frm3, width=22)
+e_mat_uni.grid(row=3, column=1, pady=3)
+
+Label(frm3, text="ID Proveedor").grid(row=4, column=0, sticky="w", pady=3)
+e_mat_pro = Entry(frm3, width=22)
+e_mat_pro.grid(row=4, column=1, pady=3)
+Label(frm3, text="(número, opcional)", fg="gray", font=("Arial", 8)).grid(
+    row=5, column=1, sticky="w")
+
+def limpiar_materiales():
+    for e in [e_mat_cod, e_mat_des, e_mat_cat, e_mat_uni, e_mat_pro]:
+        e.delete(0, END)
+
+def registrar_material():
+    if es_vacio(e_mat_cod.get()) or es_vacio(e_mat_des.get()):
+        messagebox.showwarning("Atención", "Código y Descripción son obligatorios.")
+        return
+    if e_mat_pro.get() and not es_numero(e_mat_pro.get()):
+        messagebox.showwarning("Atención", "El ID Proveedor debe ser un número.")
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_material FROM materiales WHERE codigo=%s", (e_mat_cod.get(),))
+        if cur.fetchone():
+            messagebox.showerror("Error", "Ya existe un material con ese código.")
+            con.close()
+            return
+        cur.execute("""
+            INSERT INTO materiales (codigo, descripcion, categoria, unidad_medida, proveedor_preferido)
+            VALUES (%s,%s,%s,%s,%s)
+        """, (
+            e_mat_cod.get(), e_mat_des.get(), e_mat_cat.get(),
+            e_mat_uni.get(), e_mat_pro.get() or None
+        ))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Material registrado correctamente.")
+        limpiar_materiales()
+        ver_materiales()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def ver_materiales():
+    for fila in tv_mat.get_children():
+        tv_mat.delete(fila)
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_material, codigo, descripcion, categoria, "
+                    "unidad_medida, proveedor_preferido FROM materiales")
+        for row in cur.fetchall():
+            tv_mat.insert("", END, values=row)
+        con.close()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def eliminar_material():
+    sel = tv_mat.selection()
+    if not sel:
+        messagebox.showwarning("Atención", "Selecciona un material de la tabla.")
+        return
+    valores = tv_mat.item(sel[0])["values"]
+    if not messagebox.askyesno("Confirmar", f"¿Eliminar el material '{valores[2]}'?"):
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("DELETE FROM materiales WHERE id_material=%s", (valores[0],))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Material eliminado.")
+        ver_materiales()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+frm3_btns = Frame(frm3)
+frm3_btns.grid(row=6, column=0, columnspan=2, pady=10)
+
+Button(frm3_btns, text="Registrar",  command=registrar_material, bg="#2e7d32", fg="white", width=10).grid(row=0, column=0, padx=4)
+Button(frm3_btns, text="Ver todos",  command=ver_materiales,     bg="#1565c0", fg="white", width=10).grid(row=0, column=1, padx=4)
+Button(frm3_btns, text="Eliminar",   command=eliminar_material,  bg="#c62828", fg="white", width=10).grid(row=1, column=0, padx=4, pady=4)
+Button(frm3_btns, text="Limpiar",    command=limpiar_materiales, bg="#555555", fg="white", width=10).grid(row=1, column=1, padx=4, pady=4)
+
+COLS_MAT = ("ID","Código","Descripción","Categoría","Unidad","ID Proveedor")
+Button(frm3_btns, text="Exportar Excel", command=lambda: exportar_excel(
+    "Materiales", COLS_MAT,
+    [tv_mat.item(i)["values"] for i in tv_mat.get_children()]
+), bg="#217346", fg="white", width=22).grid(row=2, column=0, columnspan=2, pady=2)
+
+Button(frm3_btns, text="Exportar PDF", command=lambda: exportar_pdf(
+    "Materiales", COLS_MAT,
+    [tv_mat.item(i)["values"] for i in tv_mat.get_children()]
+), bg="#b71c1c", fg="white", width=22).grid(row=3, column=0, columnspan=2, pady=2)
+
+frm3_tabla = Frame(tab_mat)
+frm3_tabla.pack(side=LEFT, fill="both", expand=True, padx=10, pady=10)
+
+tv_mat = ttk.Treeview(frm3_tabla, columns=COLS_MAT, show="headings", height=18)
+for col in COLS_MAT:
+    tv_mat.heading(col, text=col)
+    tv_mat.column(col, width=120, anchor="center")
+
+sb3_v = ttk.Scrollbar(frm3_tabla, orient="vertical",   command=tv_mat.yview)
+sb3_h = ttk.Scrollbar(frm3_tabla, orient="horizontal", command=tv_mat.xview)
+tv_mat.configure(yscrollcommand=sb3_v.set, xscrollcommand=sb3_h.set)
+sb3_v.pack(side=RIGHT, fill="y")
+sb3_h.pack(side=BOTTOM, fill="x")
+tv_mat.pack(fill="both", expand=True)
+
+ver_materiales()
+
+
+# ============================================================
+# PESTAÑA PROVEEDORES
+# ============================================================
+
+tab_pro = Frame(notebook)
+notebook.add(tab_pro, text="  Proveedores  ")
+
+frm4 = LabelFrame(tab_pro, text="Datos del proveedor", padx=10, pady=10)
+frm4.pack(side=LEFT, fill="y", padx=10, pady=10)
+
+Label(frm4, text="Nombre *").grid(row=0, column=0, sticky="w", pady=3)
+e_pro_nom = Entry(frm4, width=22)
+e_pro_nom.grid(row=0, column=1, pady=3)
+
+Label(frm4, text="Teléfono").grid(row=1, column=0, sticky="w", pady=3)
+e_pro_tel = Entry(frm4, width=22)
+e_pro_tel.grid(row=1, column=1, pady=3)
+
+Label(frm4, text="Dirección").grid(row=2, column=0, sticky="w", pady=3)
+e_pro_dir = Entry(frm4, width=22)
+e_pro_dir.grid(row=2, column=1, pady=3)
+
+Label(frm4, text="Email *").grid(row=3, column=0, sticky="w", pady=3)
+e_pro_mail = Entry(frm4, width=22)
+e_pro_mail.grid(row=3, column=1, pady=3)
+Label(frm4, text="Ej: correo@dominio.com", fg="gray", font=("Arial", 8)).grid(
+    row=4, column=1, sticky="w")
+
+def limpiar_proveedores():
+    for e in [e_pro_nom, e_pro_tel, e_pro_dir, e_pro_mail]:
+        e.delete(0, END)
+
+def registrar_proveedor():
+    if es_vacio(e_pro_nom.get()):
+        messagebox.showwarning("Atención", "El Nombre es obligatorio.")
+        return
+    if not es_vacio(e_pro_mail.get()) and not es_email_valido(e_pro_mail.get()):
+        messagebox.showwarning("Atención", "El email no tiene un formato válido.\nEjemplo: correo@dominio.com")
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_proveedor FROM proveedores WHERE nombre=%s AND telefono=%s",
+                    (e_pro_nom.get(), e_pro_tel.get()))
+        if cur.fetchone():
+            messagebox.showerror("Error", "Ya existe ese proveedor.")
+            con.close()
+            return
+        cur.execute("""
+            INSERT INTO proveedores (nombre, telefono, direccion, email)
+            VALUES (%s,%s,%s,%s)
+        """, (e_pro_nom.get(), e_pro_tel.get(), e_pro_dir.get(), e_pro_mail.get()))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Proveedor registrado correctamente.")
+        limpiar_proveedores()
+        ver_proveedores()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def ver_proveedores():
+    for fila in tv_pro.get_children():
+        tv_pro.delete(fila)
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("SELECT id_proveedor, nombre, telefono, direccion, email FROM proveedores")
+        for row in cur.fetchall():
+            tv_pro.insert("", END, values=row)
+        con.close()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+def eliminar_proveedor():
+    sel = tv_pro.selection()
+    if not sel:
+        messagebox.showwarning("Atención", "Selecciona un proveedor de la tabla.")
+        return
+    valores = tv_pro.item(sel[0])["values"]
+    if not messagebox.askyesno("Confirmar", f"¿Eliminar al proveedor '{valores[1]}'?"):
+        return
+    try:
+        con = conectar()
+        cur = con.cursor()
+        cur.execute("DELETE FROM proveedores WHERE id_proveedor=%s", (valores[0],))
+        con.commit()
+        con.close()
+        messagebox.showinfo("Listo", "Proveedor eliminado.")
+        ver_proveedores()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error MySQL", str(err))
+
+frm4_btns = Frame(frm4)
+frm4_btns.grid(row=5, column=0, columnspan=2, pady=10)
+
+Button(frm4_btns, text="Registrar",  command=registrar_proveedor, bg="#2e7d32", fg="white", width=10).grid(row=0, column=0, padx=4)
+Button(frm4_btns, text="Ver todos",  command=ver_proveedores,     bg="#1565c0", fg="white", width=10).grid(row=0, column=1, padx=4)
+Button(frm4_btns, text="Eliminar",   command=eliminar_proveedor,  bg="#c62828", fg="white", width=10).grid(row=1, column=0, padx=4, pady=4)
+Button(frm4_btns, text="Limpiar",    command=limpiar_proveedores, bg="#555555", fg="white", width=10).grid(row=1, column=1, padx=4, pady=4)
+
+COLS_PRO = ("ID","Nombre","Teléfono","Dirección","Email")
+Button(frm4_btns, text="Exportar Excel", command=lambda: exportar_excel(
+    "Proveedores", COLS_PRO,
+    [tv_pro.item(i)["values"] for i in tv_pro.get_children()]
+), bg="#217346", fg="white", width=22).grid(row=2, column=0, columnspan=2, pady=2)
+
+Button(frm4_btns, text="Exportar PDF", command=lambda: exportar_pdf(
+    "Proveedores", COLS_PRO,
+    [tv_pro.item(i)["values"] for i in tv_pro.get_children()]
+), bg="#b71c1c", fg="white", width=22).grid(row=3, column=0, columnspan=2, pady=2)
+
+frm4_tabla = Frame(tab_pro)
+frm4_tabla.pack(side=LEFT, fill="both", expand=True, padx=10, pady=10)
+
+tv_pro = ttk.Treeview(frm4_tabla, columns=COLS_PRO, show="headings", height=18)
+for col in COLS_PRO:
+    tv_pro.heading(col, text=col)
+    tv_pro.column(col, width=140, anchor="center")
+
+sb4_v = ttk.Scrollbar(frm4_tabla, orient="vertical",   command=tv_pro.yview)
+sb4_h = ttk.Scrollbar(frm4_tabla, orient="horizontal", command=tv_pro.xview)
+tv_pro.configure(yscrollcommand=sb4_v.set, xscrollcommand=sb4_h.set)
+sb4_v.pack(side=RIGHT, fill="y")
+sb4_h.pack(side=BOTTOM, fill="x")
+tv_pro.pack(fill="both", expand=True)
+
+ver_proveedores()
+
+
+# ============================================================
 ventana.mainloop()
