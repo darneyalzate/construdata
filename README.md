@@ -19,11 +19,10 @@ cd construdata
 ```
 3. Verificar que los archivos del proyecto estén en la carpeta:
 
-* main.py
-* proyectos.py
-* fases.py
-* materiales.py
-* empleados.py
+* conexion.py
+* principal.py
+* test_conecxion.py
+
 
 ---
 
@@ -32,7 +31,7 @@ cd construdata
 Ejecutar el archivo principal:
 
 ```
-main.py
+principal.py
 ```
 Esto abrirá la ventana principal del sistema.
 
