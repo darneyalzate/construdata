@@ -43,9 +43,10 @@ Esto abrirá la ventana principal del sistema.
 3. Seleccionar el módulo que se desea utilizar:
 
    * Gestión de proyectos
-   * Gestión de fases
+   * Gestión de proveedores
    * Gestión de materiales
    * Gestión de empleados
+   
 4. Ingresar la información solicitada en los formularios.
 5. Utilizar los botones para **guardar o visualizar los registros**.
 
