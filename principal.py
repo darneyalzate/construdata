@@ -8,14 +8,15 @@ Arquitectura MVC + POO | Python 3 + Tkinter + SQLite
   · Persistencia de preferencia de tema en JSON
 ═══════════════════════════════════════════════════════════════════
 """
+import os
+import sys
 import tkinter as tk
 from tkinter import ttk
-import sys, os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-from utils.temas import ThemeManager, tm, PALETAS
+from utils.temas import tm, PALETAS
 from views.vista_base import aplicar_estilo_ttk, FUENTE_TITULO
 from views.vista_proyectos   import VistaProyectos
 from views.vista_empleados   import VistaEmpleados
