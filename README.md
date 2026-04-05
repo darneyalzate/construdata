@@ -1,58 +1,34 @@
-# Construdata – Sistema de Gestión de Construcción
+# 🏗 ConstruData — Sistema de Gestión de Construcción
 
-## Descripción
-
-Construdata es una aplicación desarrollada en Python utilizando Tkinter 
-que permite gestionar información básica de proyectos de construcción.
-El sistema está organizado en diferentes módulos que permiten registrar y visualizar información relacionada
-con proyectos, fases, materiales y empleados.
-
-# Instalación
-
-1. Descargar o clonar el repositorio desde GitHub.
-```
-git clone https://github.com/usuario/construdata.git
-```
-2. Ingresar a la carpeta del proyecto.
-```
-cd construdata
-```
-3. Verificar que los archivos del proyecto estén en la carpeta:
-
-* conexion.py
-* principal.py
-* test_conecxion.py
-
+Sistema de escritorio en **Python + Tkinter** con arquitectura **MVC + POO**, base de datos **MySQL/SQLite**, exportación a **Excel y PDF**, y 3 temas visuales intercambiables.
 
 ---
 
-# Ejecución del sistema
+## ⚙ Instalación
 
-Ejecutar el archivo principal:
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
+**Base de datos MySQL** (opcional — usa SQLite automáticamente si no hay MySQL):
+```bash
+mysql -u root -p < database/construdata_mysql.sql
 ```
-principal.py
-```
-Esto abrirá la ventana principal del sistema.
 
 ---
-# Uso del sistema
 
-1. Ejecutar el archivo **main.py**.
-2. Se mostrará la ventana principal del sistema.
-3. Seleccionar el módulo que se desea utilizar:
+## ✅ Funcionalidades
 
-   * Gestión de proyectos
-   * Gestión de proveedores
-   * Gestión de materiales
-   * Gestión de empleados
-   
-4. Ingresar la información solicitada en los formularios.
-5. Utilizar los botones para **guardar o visualizar los registros**.
+- **4 módulos:** Proyectos · Empleados · Materiales · Proveedores
+- **CRUD completo** con búsqueda, filtros y confirmación antes de eliminar
+- **Validaciones:** numérica en tiempo real, email con regex, longitud mín/máx, tkcalendar para fechas
+- **Imágenes con Pillow** en 3 formularios (JPG, PNG, GIF · máx. 5 MB)
+- **Exportación** a Excel (openpyxl) y PDF (reportlab) con filtros aplicados
+- **3 temas visuales:** ☀ Claro · 🌙 Oscuro · ⚡ Alto Contraste
 
+---
 
-# Autor
+## 🛠 Tecnologías
 
-Proyecto académico desarrollado por:
-
-**William Alzate**
+`Python 3` · `Tkinter` · `MySQL / SQLite` · `Pillow` · `openpyxl` · `ReportLab` · `tkcalendar`
