@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Jupyter Notebook" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;darneyalzate&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/darneyalzate/construdata.git&quot;,
+    &quot;accountId&quot;: &quot;4ae33e6f-8c5d-4cbe-b24b-5863f31ae1e5&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 8
+}</component>
+  <component name="ProjectId" id="3AgkujxfCkS2zzHqSB0gLxYXU8E" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.conexion.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.principal.executor": "Run",
+    "Python.pruebas.executor": "Run",
+    "Python.test_conexion.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "C:/Users/DARNE/PycharmProjects/construdata",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\DARNE\PycharmProjects\construdata" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\DARNE\PycharmProjects\construdata" />
+      <recent name="C:\Users\DARNE\PycharmProjects\construdata\database" />
+      <recent name="C:\Users\DARNE\PycharmProjects\construdata\assets" />
+    </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-4e2b1448bda8-9a97661f3031-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.27397.106" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="" />
+      <created>1773021825710</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1773021825710</updated>
+    </task>
+    <task id="LOCAL-00001" summary="modificacion del codigo para que quede mas visible">
+      <option name="closed" value="true" />
+      <created>1773624615891</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624615891</updated>
+    </task>
+    <task id="LOCAL-00002" summary="modificacion del codigo para que quede mas visible">
+      <option name="closed" value="true" />
+      <created>1773624655840</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1773624655840</updated>
+    </task>
+    <task id="LOCAL-00003" summary="modificacion del codigo para que quede mas visible">
+      <option name="closed" value="true" />
+      <created>1773627748962</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1773627748962</updated>
+    </task>
+    <task id="LOCAL-00004" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas">
+      <option name="closed" value="true" />
+      <created>1773628227029</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1773628227029</updated>
+    </task>
+    <task id="LOCAL-00005" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas">
+      <option name="closed" value="true" />
+      <created>1773628978160</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1773628978160</updated>
+    </task>
+    <task id="LOCAL-00006" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
+      <option name="closed" value="true" />
+      <created>1775180321889</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1775180321889</updated>
+    </task>
+    <task id="LOCAL-00007" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
+      <option name="closed" value="true" />
+      <created>1775181066424</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1775181066424</updated>
+    </task>
+    <task id="LOCAL-00008" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
+      <option name="closed" value="true" />
+      <created>1775182513110</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1775182513110</updated>
+    </task>
+    <task id="LOCAL-00009" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
+      <option name="closed" value="true" />
+      <created>1775366353754</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1775366353754</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
+    <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="modificacion del codigo para que quede mas visible" />
+    <MESSAGE value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas" />
+    <MESSAGE value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
+    <option name="LAST_COMMIT_MESSAGE" value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
+    <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
+  </component>
+</project>
