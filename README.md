@@ -16,14 +16,6 @@ git clone https://github.com/usuario/construdata.git
 2. Ingresar a la carpeta del proyecto.
 ```
 cd construdata
-```
-3. Verificar que los archivos del proyecto estén en la carpeta:
-
-* conexion.py
-* principal.py
-* test_conecxion.py
-
-
 ---
 
 # Ejecución del sistema
