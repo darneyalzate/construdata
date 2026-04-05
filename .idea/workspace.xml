@@ -4,17 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/favicon.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/favicon.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/temas.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/temas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/vista_base.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/vista_base.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/vista_empleados.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/vista_empleados.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/vista_materiales.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/vista_materiales.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/vista_proveedores.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/vista_proveedores.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/vista_proyectos.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/vista_proyectos.py" afterDir="false" />
-    </list>
+    <list default="true" id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -177,7 +167,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775366851080</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor">
+      <option name="closed" value="true" />
+      <created>1775368053873</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1775368053873</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
