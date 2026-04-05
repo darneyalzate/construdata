@@ -1,34 +1,58 @@
-# 🏗 ConstruData — Sistema de Gestión de Construcción
+# Construdata – Sistema de Gestión de Construcción
 
-Sistema de escritorio en **Python + Tkinter** con arquitectura **MVC + POO**, base de datos **MySQL/SQLite**, exportación a **Excel y PDF**, y 3 temas visuales intercambiables.
+## Descripción
 
----
+Construdata es una aplicación desarrollada en Python utilizando Tkinter 
+que permite gestionar información básica de proyectos de construcción.
+El sistema está organizado en diferentes módulos que permiten registrar y visualizar información relacionada
+con proyectos, fases, materiales y empleados.
 
-## ⚙ Instalación
+# Instalación
 
-```bash
-pip install -r requirements.txt
-python main.py
+1. Descargar o clonar el repositorio desde GitHub.
 ```
-
-**Base de datos MySQL** (opcional — usa SQLite automáticamente si no hay MySQL):
-```bash
-mysql -u root -p < database/construdata_mysql.sql
+git clone https://github.com/usuario/construdata.git
 ```
+2. Ingresar a la carpeta del proyecto.
+```
+cd construdata
+```
+3. Verificar que los archivos del proyecto estén en la carpeta:
+
+* conexion.py
+* principal.py
+* test_conecxion.py
+
 
 ---
 
-## ✅ Funcionalidades
+# Ejecución del sistema
 
-- **4 módulos:** Proyectos · Empleados · Materiales · Proveedores
-- **CRUD completo** con búsqueda, filtros y confirmación antes de eliminar
-- **Validaciones:** numérica en tiempo real, email con regex, longitud mín/máx, tkcalendar para fechas
-- **Imágenes con Pillow** en 3 formularios (JPG, PNG, GIF · máx. 5 MB)
-- **Exportación** a Excel (openpyxl) y PDF (reportlab) con filtros aplicados
-- **3 temas visuales:** ☀ Claro · 🌙 Oscuro · ⚡ Alto Contraste
+Ejecutar el archivo principal:
+
+```
+principal.py
+```
+Esto abrirá la ventana principal del sistema.
 
 ---
+# Uso del sistema
 
-## 🛠 Tecnologías
+1. Ejecutar el archivo **main.py**.
+2. Se mostrará la ventana principal del sistema.
+3. Seleccionar el módulo que se desea utilizar:
 
-`Python 3` · `Tkinter` · `MySQL / SQLite` · `Pillow` · `openpyxl` · `ReportLab` · `tkcalendar`
+   * Gestión de proyectos
+   * Gestión de proveedores
+   * Gestión de materiales
+   * Gestión de empleados
+   
+4. Ingresar la información solicitada en los formularios.
+5. Utilizar los botones para **guardar o visualizar los registros**.
+
+
+# Autor
+
+Proyecto académico desarrollado por:
+
+**William Alzate**
