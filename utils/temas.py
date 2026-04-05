@@ -5,41 +5,92 @@ CONFIG_FILE = "tema_config.json"
 
 PALETAS = {
     "claro": {
-        "fondo": "#f0f0f0",
-        "barra_bg": "#ffffff",
-        "barra_fg": "#000000",
-        "barra_sub": "#555",
-        "estado_bg": "#dddddd",
-        "estado_fg": "#000",
-        "primario": "#1976d2",
-        "primario_lt": "#42a5f5",
-        "primario_dk": "#0d47a1",
-        "texto_inv": "#ffffff"
+        # Estructura general
+        "fondo":          "#F5F5F5",
+        "fondo_frm":      "#FFFFFF",
+        "fondo_entrada":  "#FFFFFF",
+        "fondo_tabla":    "#FFFFFF",
+        "borde":          "#BBDEFB",
+        # Texto
+        "texto":          "#212121",
+        "texto_sec":      "#757575",
+        "texto_inv":      "#FFFFFF",
+        # Barra de título
+        "barra_bg":       "#1565C0",
+        "barra_fg":       "#FFFFFF",
+        "barra_sub":      "#90CAF9",
+        # Barra de estado
+        "estado_bg":      "#E3F2FD",
+        "estado_fg":      "#1565C0",
+        # Colores primarios
+        "primario":       "#1565C0",
+        "primario_lt":    "#1976D2",
+        "primario_dk":    "#0D47A1",
+        # Tabs
+        "tab_bg":         "#E3F2FD",
+        "tab_fg":         "#1565C0",
+        # Filas de tabla alternas
+        "fila_par":       "#E3F2FD",
+        "fila_impar":     "#FFFFFF",
     },
     "oscuro": {
-        "fondo": "#2b2b2b",
-        "barra_bg": "#1f1f1f",
-        "barra_fg": "#ffffff",
-        "barra_sub": "#bbbbbb",
-        "estado_bg": "#1f1f1f",
-        "estado_fg": "#ffffff",
-        "primario": "#4caf50",
-        "primario_lt": "#81c784",
-        "primario_dk": "#1b5e20",
-        "texto_inv": "#ffffff"
+        # Estructura general
+        "fondo":          "#1E1E1E",
+        "fondo_frm":      "#2B2B2B",
+        "fondo_entrada":  "#3C3F41",
+        "fondo_tabla":    "#2B2B2B",
+        "borde":          "#555555",
+        # Texto
+        "texto":          "#E0E0E0",
+        "texto_sec":      "#AAAAAA",
+        "texto_inv":      "#FFFFFF",
+        # Barra de título
+        "barra_bg":       "#1F1F1F",
+        "barra_fg":       "#FFFFFF",
+        "barra_sub":      "#BBBBBB",
+        # Barra de estado
+        "estado_bg":      "#1F1F1F",
+        "estado_fg":      "#FFFFFF",
+        # Colores primarios
+        "primario":       "#4CAF50",
+        "primario_lt":    "#81C784",
+        "primario_dk":    "#1B5E20",
+        # Tabs
+        "tab_bg":         "#2B2B2B",
+        "tab_fg":         "#BBBBBB",
+        # Filas de tabla alternas
+        "fila_par":       "#2B3B2B",
+        "fila_impar":     "#2B2B2B",
     },
     "alto_contraste": {
-        "fondo": "#000000",
-        "barra_bg": "#000000",
-        "barra_fg": "#ffffff",
-        "barra_sub": "#ffff00",
-        "estado_bg": "#000000",
-        "estado_fg": "#ffffff",
-        "primario": "#ffff00",
-        "primario_lt": "#ffff99",
-        "primario_dk": "#cccc00",
-        "texto_inv": "#000000"
-    }
+        # Estructura general
+        "fondo":          "#000000",
+        "fondo_frm":      "#000000",
+        "fondo_entrada":  "#1A1A1A",
+        "fondo_tabla":    "#000000",
+        "borde":          "#FFFF00",
+        # Texto
+        "texto":          "#FFFFFF",
+        "texto_sec":      "#FFFF00",
+        "texto_inv":      "#000000",
+        # Barra de título
+        "barra_bg":       "#000000",
+        "barra_fg":       "#FFFFFF",
+        "barra_sub":      "#FFFF00",
+        # Barra de estado
+        "estado_bg":      "#000000",
+        "estado_fg":      "#FFFFFF",
+        # Colores primarios
+        "primario":       "#FFFF00",
+        "primario_lt":    "#FFFF99",
+        "primario_dk":    "#CCCC00",
+        # Tabs
+        "tab_bg":         "#1A1A1A",
+        "tab_fg":         "#FFFF00",
+        # Filas de tabla alternas
+        "fila_par":       "#1A1A00",
+        "fila_impar":     "#000000",
+    },
 }
 
 
@@ -49,35 +100,51 @@ class ThemeManager:
         self.observers = []
         self.cargar()
 
-    def color(self, clave):
-        return PALETAS[self.tema_actual].get(clave, "#000")
+    def color(self, clave: str) -> str:
+        return PALETAS[self.tema_actual].get(clave, "#000000")
 
-    def cambiar_tema(self, nombre):
-        self.tema_actual = nombre
-        self.guardar()
-        self.notificar()
+    def cambiar_tema(self, nombre: str):
+        if nombre in PALETAS:
+            self.tema_actual = nombre
+            self.guardar()
+            self.notificar()
 
     def registrar_observer(self, func):
-        self.observers.append(func)
+        if func not in self.observers:
+            self.observers.append(func)
 
     def notificar(self):
         for obs in self.observers:
-            obs()
+            try:
+                obs()
+            except Exception:
+                pass
 
     def guardar(self):
-        with open(CONFIG_FILE, "w") as f:
-            json.dump({"tema": self.tema_actual}, f)
+        try:
+            with open(CONFIG_FILE, "w") as f:
+                json.dump({"tema": self.tema_actual}, f)
+        except Exception:
+            pass
 
     def cargar(self):
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE) as f:
-                self.tema_actual = json.load(f).get("tema", "claro")
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE) as f:
+                    self.tema_actual = json.load(f).get("tema", "claro")
+        except Exception:
+            self.tema_actual = "claro"
 
-    def nombre_tema(self):
-        return self.tema_actual
+    def nombre_tema(self) -> str:
+        nombres = {
+            "claro":          "☀ Claro",
+            "oscuro":         "🌙 Oscuro",
+            "alto_contraste": "⚡ Contraste",
+        }
+        return nombres.get(self.tema_actual, self.tema_actual)
 
 
 _tm = ThemeManager()
 
-def tm():
+def tm() -> ThemeManager:
     return _tm
