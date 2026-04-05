@@ -56,4 +56,3 @@ Esto abrirá la ventana principal del sistema.
 Proyecto académico desarrollado por:
 
 **William Alzate**
-
