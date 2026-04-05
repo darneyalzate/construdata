@@ -50,7 +50,6 @@ Esto abrirá la ventana principal del sistema.
 4. Ingresar la información solicitada en los formularios.
 5. Utilizar los botones para **guardar o visualizar los registros**.
 
-
 # Autor
 
 Proyecto académico desarrollado por:
