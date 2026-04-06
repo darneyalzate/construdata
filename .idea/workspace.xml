@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
+    <list default="true" id="b35f6e87-69a0-4a54-94e6-7a6bbc1efb42" name="Changes" comment="adjuntos documento">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -182,7 +184,8 @@
     <MESSAGE value="modificacion del codigo para que quede mas visible" />
     <MESSAGE value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas" />
     <MESSAGE value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
-    <option name="LAST_COMMIT_MESSAGE" value="modificacion del codigo para que quede mas visible y que tenga sus funciones correctas y cumplir con lo requerido por el profesor" />
+    <MESSAGE value="adjuntos documento" />
+    <option name="LAST_COMMIT_MESSAGE" value="adjuntos documento" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
 </project>
